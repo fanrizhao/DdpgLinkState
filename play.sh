@@ -1,0 +1,1 @@
+nohup python3 ddpg.py >/dev/null 2>&1 &
