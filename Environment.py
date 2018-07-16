@@ -70,7 +70,7 @@ def csv_to_vector(string, start, vector_num):
 
 # TO RL
 def rl_state(env):
-    return np.concatenate((matrix_to_rl(env.env_Linkstate), matrix_to_rl(env.env_T)))
+    return np.concatenate((matrix_to_rl(env.env_edge_linkstate), matrix_to_rl(env.env_T)))
   
 def rl_reward(env):
 
@@ -134,7 +134,7 @@ class OmnetLinkweightEnv():
 
         self.a_dim = self.graph.number_of_edges()
 
-        self.s_dim = self.ACTIVE_NODES**2 *2- self.ACTIVE_NODES    # traffic minus diagonal
+        self.s_dim = self.ACTIVE_NODES**2 + self.a_dim - self.ACTIVE_NODES    # traffic minus diagonal
         # self.s_dim = self.ACTIVE_NODES**2 * 2
 
         self.STATUM = DDPG_config['STATUM']
@@ -156,10 +156,12 @@ class OmnetLinkweightEnv():
         self.env_Rn = np.full([self.ACTIVE_NODES]*2, -1.0, dtype=int)   # routing (nodes)
         self.env_L = np.full([self.ACTIVE_NODES]*2, -1.0, dtype=float)  # link loss
         self.env_Linkstate = np.full([self.ACTIVE_NODES]*2, 1.0, dtype=float) # linkstate
+        self.env_edge_linkstate = np.full([self.a_dim], 1.0, dtype=float) # 边 state
         self.env_all_shortest = [] # 记录所有最短路径
         self.env_Bandwidth = np.full([self.ACTIVE_NODES]*2, 9.0 ,dtype=float) # 链路的带宽
         self.linkfailure = [] # 记录每次断掉的是哪一条链路
         self.linkset = [] # 记录50次断掉链路的情况
+        self.link_edge_number_set = []
         self.counter = 0
         
 
@@ -171,7 +173,8 @@ class OmnetLinkweightEnv():
     
     
     def upd_env_W(self, vector):
-        self.env_W = np.asarray(softmax(vector))
+        # self.env_W = np.asarray(softmax(vector))
+        self.env_W = np.asarray(vector)
 
     def check_if_link_failure(self):
         for s in range(self.ACTIVE_NODES):
@@ -181,7 +184,7 @@ class OmnetLinkweightEnv():
                     for i in range(len(path)-1):
                         node = path[i]
                         next = path[i+1]
-
+                       
                         if self.env_T[s][d]!=0 and self.env_Linkstate[node][next]==0 :
                             # sp = nx.all_simple_paths(self.graph, source=s, target=d)
                             # for p in sp:
@@ -257,6 +260,7 @@ class OmnetLinkweightEnv():
         生成50条链路断掉的情况
         '''
         linkset = []
+        self.link_edge_number_set = []
         edges = self.graph.edges()
         graph = self.graph.copy()
         for i in range(50):
@@ -264,20 +268,25 @@ class OmnetLinkweightEnv():
                 number = np.random.choice(len(edges))
                 link = edges[number]
                 graph = self.graph.copy()
-                graph.remove_edge(link[0],link[1])
+                graph.remove_edge(link[0],link[1])               
                 if nx.is_connected(graph)==True:
                     break
             linkset.append(link)
+            self.link_edge_number_set.append(number)
         self.linkset = linkset.copy()
 
     def choose_one_link_failure_from_set(self, step):
         link = self.linkset[step]
+        number = self.link_edge_number_set[step]
         print('断掉的链路是:', link)
         self.linkfailure = link
         # self.graph.remove_edge(link[0],link[1])
         self.env_Linkstate = self.topo.copy()
         self.env_Linkstate[link[0]][link[1]] = 0
         self.env_Linkstate[link[1]][link[0]] = 0
+        self.env_edge_linkstate = np.full([self.a_dim], 1.0, dtype=float)
+        self.env_edge_linkstate[number] = 0
+    
 
 
 
@@ -304,6 +313,8 @@ class OmnetLinkweightEnv():
         self.env_Linkstate = self.topo.copy()
         self.env_Linkstate[link[0]][link[1]] = 0
         self.env_Linkstate[link[1]][link[0]] = 0
+        self.env_edge_linkstate = np.full([self.a_dim], 1.0, dtype=float)
+        self.env_edge_linkstate[number] = 0
         
         # print(self.graph.edges())
         # print(self.origin_graph.edges())
@@ -346,7 +357,7 @@ class OmnetLinkweightEnv():
         
         # link state
         self.upd_env_Linkstate(np.full([self.ACTIVE_NODES]*2, 1, dtype=float)) # 
-        vector_to_file(matrix_to_omnet_v(self.env_Linkstate), self.folder + LINKSTATE, 'w')
+        vector_to_file(matrix_to_omnet_v(self.env_edge_linkstate), self.folder + LINKSTATE, 'w')
         
 
         # traffic
@@ -370,12 +381,14 @@ class OmnetLinkweightEnv():
             # 存在不通的路径
             # self.graph = self.origin_graph # 回到初始没有链路断掉的情况
             reward = -1
+            self.linkfailure = []
             self.graph = self.origin_graph.copy()
             self.upd_env_T(self.tgen.generate())
             self.upd_env_Linkstate(self.topo.copy())
             new_state = rl_state(self)
             # input('--------')
             vector_to_file([reward], self.folder + REWARDLOG, 'a')
+            print('fail reward ',reward)
             return new_state, reward, 1
 
 
@@ -400,14 +413,19 @@ class OmnetLinkweightEnv():
 
         # reward = rl_reward(self)
         reward = np.sum(1-self.env_Linkstate)
+        print('success reward ',reward)
 
         # log reward to file
         vector_to_file([reward], self.folder + REWARDLOG, 'a')
         cur_state = rl_state(self)
+        string = str(self.linkfailure) + ',' + str(reward)
+        if len(self.linkfailure)!=0:
+            with open(self.folder +'ton_dua.txt','a') as tonfile:
+                    tonfile.write(string + '\n')
         
         # generate traffic for next iteration
-        # self.generate_link_failure()
-        self.choose_one_link_failure_from_set(step_cnt)
+        self.generate_link_failure()
+        # self.choose_one_link_failure_from_set(step_cnt)
         self.upd_env_T(self.tgen.generate())
         
         # write to file input for Omnet: Traffic, or do nothing if static
@@ -415,6 +433,7 @@ class OmnetLinkweightEnv():
             vector_to_file(matrix_to_omnet_v(self.env_T), self.folder + OMTRAFFIC, 'w')
 
         new_state = rl_state(self)
+        vector_to_file(matrix_to_omnet_v(self.env_edge_linkstate), self.folder + LINKSTATE, 'w')
         # return new status and reward
         return new_state, reward, 0
 

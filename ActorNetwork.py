@@ -6,7 +6,7 @@ __credits__ = "https://github.com/yanpanlau"
 
 from keras.initializations import normal, glorot_normal
 from keras.activations import relu
-from keras.layers import Dense, Input, BatchNormalization
+from keras.layers import Dense, Input, BatchNormalization,merge, Lambda
 from keras.models import Model
 from keras.regularizers import l2
 import keras.backend as K

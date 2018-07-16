@@ -120,9 +120,9 @@ def playGame(DDPG_config, train_indicator=1):    #1 means Train, 0 means simply 
             a_t[0] = np.where((a + n > 0) & (a + n < 1), a + n, a - n).clip(min=0, max=1)
 
             # execute action
-            s_t1, r_t, done = env.step(a_t[0], j)
+            s_t1, r_t, done = env.step(a_t[0], step)
             # print(s_t1)
-            print('reward ', r_t)
+            # print('reward ', r_t)
 
             buff.add(s_t, a_t[0], r_t, s_t1, done)      #Add replay buffer
 
@@ -187,7 +187,7 @@ def playGame(DDPG_config, train_indicator=1):    #1 means Train, 0 means simply 
             if done or wise:
                 break
 
-        if step % 1000 == 0:   # writes at every 1000 step
+        if step % 1000 == 0 or i == EPISODE_COUNT - 1:   # writes at every 1000 step
             if (train_indicator):
                 actor.model.save_weights(folder + "actormodel.h5", overwrite=True)
                 actor.model.save_weights(folder + "actormodel" + str(step) + ".h5")
