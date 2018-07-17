@@ -194,7 +194,7 @@ class OmnetLinkweightEnv():
                             # print(self.graph.edges())
                             # print('link:  ',self.env_Linkstate[node][next])
                             return False
-
+        print('sucess, link fail=',self.linkfailure)
         return True
 
     def upd_env_R(self):
@@ -382,9 +382,10 @@ class OmnetLinkweightEnv():
             # self.graph = self.origin_graph # 回到初始没有链路断掉的情况
             reward = -1
             self.linkfailure = []
-            self.graph = self.origin_graph.copy()
+            # self.graph = self.origin_graph.copy()
             self.upd_env_T(self.tgen.generate())
             self.upd_env_Linkstate(self.topo.copy())
+            # self.generate_link_failure()
             new_state = rl_state(self)
             # input('--------')
             vector_to_file([reward], self.folder + REWARDLOG, 'a')
@@ -426,7 +427,8 @@ class OmnetLinkweightEnv():
         # generate traffic for next iteration
         self.generate_link_failure()
         # self.choose_one_link_failure_from_set(step_cnt)
-        self.upd_env_T(self.tgen.generate())
+        # ------------- 用同一个traffic，不同的link 试试
+        self.upd_env_T(self.tgen.generate()) 
         
         # write to file input for Omnet: Traffic, or do nothing if static
         if self.TRAFFIC.split(':')[0] not in ('STAT', 'STATEQ', 'FILE'):
