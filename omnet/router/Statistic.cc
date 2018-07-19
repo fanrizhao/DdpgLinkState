@@ -163,23 +163,47 @@ void Statistic::printStats() {
 
     // utit
     //int steps = (SIMTIME/1000)+50;
-    for (int i = 0; i < numTx; i++) {
-       for (int j = 0; j < numTx; j++) {
-           long double d = 0;
-           int numPackets = (SendP)[i][j];
-           int lostPackets = (DropsV)[i][j];
-           //cout<<" src="<<i<<" ,dst="<<j<<",num="<<numPackets<<", lost="<<lostPackets<<endl;
-           if (lostPackets==0){
-               features.push_back(0);
-
-           }else{
-
-               d = (double)lostPackets/(numPackets + lostPackets);
-               //cout<<d<<" src="<<i<<" ,dst="<<j<<endl;
-               features.push_back(d);
-           }
+//    for (int i = 0; i < numTx; i++) {
+//       for (int j = 0; j < numTx; j++) {
+//           long double d = 0;
+//           int numPackets = (SendP)[i][j];
+//           int lostPackets = (DropsV)[i][j];
+//           //cout<<" src="<<i<<" ,dst="<<j<<",num="<<numPackets<<", lost="<<lostPackets<<endl;
+//           if (lostPackets==0){
+//               features.push_back(0);
+//
+//           }else{
+//
+//               d = (double)lostPackets/(numPackets + lostPackets);
+//               //cout<<d<<" src="<<i<<" ,dst="<<j<<endl;
+//               features.push_back(d);
+//           }
+//       }
+//    }
+    // Delay
+       int steps = (SIMTIME/1000)+50;
+       for (int i = 0; i < numTx; i++) {
+          for (int j = 0; j < numTx; j++) {
+              long double d = 0;
+              unsigned int numPackets = (Delay)[i][j].size();
+              for (unsigned int k = 0; k < numPackets; k++)
+                  d += (Delay)[i][j][k];
+              if (numPackets == 0)
+                  if (i == j)
+                      features.push_back(-1);
+                  else
+                      features.push_back(std::numeric_limits<double>::infinity());
+              else
+                  features.push_back(d/numPackets);
+          }
        }
-    }
+       // Drops
+   //     for (int i = 0; i < numTx; i++) {
+   //        for (int j = 0; j < numTx; j++) {
+   //            features.push_back((DropsV)[i][j]/steps);
+   //        }
+   //     }
+       features.push_back(drops/steps);
 
     //features.push_back(drops/steps);
 
@@ -198,7 +222,7 @@ void Statistic::printStats() {
 
 
     // Instant
-    filename = folderName + "/PacketLossRate.txt";
+    filename = folderName + "/Delay.txt";
 //    sprintf(filename, folderName + "/Delay.txt");
     myfile.open (filename, ios::out | ios::trunc );
     for (unsigned int i = 0; i < features.size(); i++ ) {

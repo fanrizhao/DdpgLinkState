@@ -73,7 +73,7 @@ class Traffic():
 
         np.fill_diagonal(T, -1)
 
-        T[T!=-1] = np.asarray(np.random.exponential()*T[T!=-1]/np.average(T[T!=-1])).clip(min=0)
+        T[T!=-1] = np.asarray(np.random.exponential()*T[T!=-1]/np.average(T[T!=-1])).clip(min=0.001)
 
         return T
     def static_traffic(self):

@@ -58,7 +58,7 @@ void Routing::handleMessage(cMessage *msg)
         ev << this->getFullPath() << "  TTL = 0. Msg deleted" << endl;
         //cout <<"lost,"<< data->getLastRouter()<<",id="<<id<<endl;
         //Statistic::instance()->setTraffic(simTime(), data->getLastRouter(),id);
-        Statistic::instance()->setLost(simTime(), data->getLastRouter(), id);
+        Statistic::instance()->setLost(simTime(), data->getSrcNode(), id);
         delete msg;
     }
     else { // Tant in com out
@@ -67,7 +67,7 @@ void Routing::handleMessage(cMessage *msg)
         ev <<"routing,"<< data->getLastRouter()<<",id="<<id<<endl;
         //cout<<"last="<<data->getLastRouter()<<",id="<<id<< "  Source: " << data->getSrcNode() << " Dest: " << data->getDstNode()<<endl;
         if(data->getSrcNode()!=id){
-            Statistic::instance()->setTraffic(simTime(), data->getLastRouter(),id);
+//            Statistic::instance()->setTraffic(simTime(), data->getSrcNode(),id);
             data->setLastRouter(id);
         }
 
